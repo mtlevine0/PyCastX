@@ -41,5 +41,4 @@ if __name__ == "__main__":
         if frame_data is None:
             break  # Break the loop if no more data is available
         img_data = struct.unpack(f'{width * height * 3}B', frame_data)
-        print(len(frame_data))
         send_frame(client_socket, addr, frame_data)
