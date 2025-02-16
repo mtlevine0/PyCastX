@@ -1,6 +1,6 @@
 # PyCastX
 
-PyCastX is a Python-powered software stack for rendering dynamic content on an LED video wall. It supports multiple applications, including live sports scores, music visualization, and video streaming, making it a flexible and powerful solution for interactive and real-time displays.
+PyCastX is a modular Python-powered software stack for rendering dynamic content on an LED video wall. It supports multiple applications, including live sports scores, music visualization, and video streaming, making it a flexible and powerful solution for interactive and real-time displays.
 
 ## Features
 - **Live Sports Scores** – Display real-time sports scores with full team logos and graphics.
