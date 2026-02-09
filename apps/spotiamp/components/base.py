@@ -96,7 +96,7 @@ class Base(pygame.sprite.Sprite):
         def __init__(self, skin):
             super().__init__()
             self.monoster_surface = pygame.Surface((50, 50))
-            self.logo = pygame.image.load("skins/base/spotify_small.png")
+            self.logo = pygame.image.load("skins/base/raspbian_logo.png")
             self.logo = pygame.transform.scale(self.logo, (23, 23))
 
         def draw(self, surface):
