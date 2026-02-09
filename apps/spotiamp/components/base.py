@@ -1,6 +1,7 @@
 import pygame
 from components.text import Text, Marquee
 from components.time import Time
+import math
 
 class Base(pygame.sprite.Sprite):
     skin = "base"
@@ -36,6 +37,7 @@ class Base(pygame.sprite.Sprite):
 
         ## Volume
         self.volume = self.Volume(self.skin)
+        self.volume.move(0)
         self.volume.draw(self.base_surface)
 
         ## Balance
@@ -46,11 +48,24 @@ class Base(pygame.sprite.Sprite):
         self.monoster = self.Monoster(self.skin)
         self.monoster.draw(self.base_surface)
 
+        ## PlayerState
+        self.playerstate = self.PlayerState(self.skin)
+        self.playerstate.draw(self.base_surface)
+        self.playerstate.move('stopped')
+
         ## Posbar
         self.posbar = self.Posbar(self.skin)
         self.posbar.move(0)
 
         self.posbar.draw(self.base_surface)
+
+        ## BitRate
+        self.bitrate = self.BitRate(self.skin)
+        self.bitrate.draw(self.base_surface)
+
+        ## SampleRate
+        self.samplerate = self.SampleRate(self.skin)
+        self.samplerate.draw(self.base_surface)
 
         ## Text
         self.text = Text(self.skin, 5, 6)
@@ -63,18 +78,16 @@ class Base(pygame.sprite.Sprite):
         self.time.draw("00:00", self.base_surface)
 
 
-    def move(self, position, time):
-        # The xx - Heart Skipped A Beat (4:02) *** 
+    def move(self, position, time, volume, state):
         self.posbar.move(position)
         self.posbar.draw(self.base_surface)
         self.marquee.move()
         self.marquee.draw(self.base_surface)
+        self.volume.move(volume)
+        self.volume.draw(self.base_surface)
+        self.playerstate.move(state)
+        self.playerstate.draw(self.base_surface)
         self.time.draw(time, self.base_surface)
-
-        # self.text = Text(self.skin, 5, 6)
-        # text_image = self.text.draw(text, self.base_surface)
-
-        # self.marquee = Marquee(text_image, 0.1, 156, 6)
 
     def draw(self, surface):
         scaled_base_surface = self.base_surface
@@ -159,14 +172,39 @@ class Base(pygame.sprite.Sprite):
         def __init__(self, skin):
             super().__init__()
             self.volume_surface = pygame.Surface((67, 13))
-            sprite_sheet = pygame.image.load("skins/{}/VOLUME.BMP".format(skin))
-            self.volume_image = sprite_sheet.subsurface(pygame.Rect(0, 330, 67, 30))
+            sprite_sheet = pygame.image.load("skins/{}/VOLUME.BMP".format(skin)) # 28 color options, 14px tall
+            self.sprite_sheet = sprite_sheet
+            self.volume_image = sprite_sheet.subsurface(pygame.Rect(0, 330, 67, 15))
             self.slider_image = sprite_sheet.subsurface(pygame.Rect(15, 422, 13, 10))
+            self.slider_rect = self.slider_image.get_rect()
+
+        def move(self, percentage):
+            x_pos = percentage / 100 * (self.volume_surface.get_rect().width - self.slider_rect.width) 
+            self.slider_rect.x = x_pos
+
+            # Calculate the colored slider background to use
+            sprite_y_pos = self.percentage_to_bin(percentage) * 15
+            self.volume_image = self.sprite_sheet.subsurface(pygame.Rect(0, sprite_y_pos, 67, 15)) # left, top, width, height
 
         def draw(self, surface):
             self.volume_surface.blit(self.volume_image, (0, 0))
-            self.volume_surface.blit(self.slider_image, (42, 1))
+            self.volume_surface.blit(self.slider_image, self.slider_rect)
             surface.blit(self.volume_surface, (108, 58))
+
+        def percentage_to_bin(self, percent, num_bins=28):
+            """
+            Map a percentage (0–100) to one of `num_bins` bins.
+
+            Returns an integer bin index from 0 to num_bins-1.
+            """
+            # Clamp input to [0, 100]
+            percent = max(0.0, min(100.0, percent))
+
+            bin_width = 100.0 / num_bins
+            bin_index = int(percent // bin_width)
+
+            # Handle the edge case where percent == 100
+            return min(bin_index, num_bins - 1)
 
     class Balance(pygame.sprite.Sprite):
         def __init__(self, skin):
@@ -193,6 +231,50 @@ class Base(pygame.sprite.Sprite):
             self.monoster_surface.blit(self.mono_image, (0, 0))
             self.monoster_surface.blit(self.stereo_image, (26, 0))
             surface.blit(self.monoster_surface, (213, 41))
+
+    class PlayerState(pygame.sprite.Sprite):
+        def __init__(self, skin):
+            super().__init__()
+            self.playerstate_surface = pygame.Surface((9, 9))
+            sprite_sheet = pygame.image.load("skins/{}/PLAYPAUS.BMP".format(skin))
+            self.play_image = sprite_sheet.subsurface(pygame.Rect(0, 0, 9, 9)) # left, top, width, height
+            self.pause_image = sprite_sheet.subsurface(pygame.Rect(9, 0, 9, 9))
+            self.stop_image = sprite_sheet.subsurface(pygame.Rect(20, 0, 9, 9))
+            self.state = None
+
+        def draw(self, surface):
+            if self.state == "playing":
+                self.playerstate_surface.blit(self.play_image, (0, 0))
+            elif self.state == "paused":
+                self.playerstate_surface.blit(self.pause_image, (0, 0))
+            else:
+                self.playerstate_surface.blit(self.stop_image, (0, 0))
+            surface.blit(self.playerstate_surface, (27, 27))
+
+        def move(self, state):
+            self.state = state.lower()
+
+    class BitRate(pygame.sprite.Sprite):
+        def __init__(self, skin):
+            self.skin = skin
+            self.surface = pygame.Surface((12, 10))
+            self.bitrate = "192"
+            self.text = Text(self.skin, 5, 6)
+            self.text_image = self.text.draw(self.bitrate, self.surface)
+
+        def draw(self, surface):
+            surface.blit(self.text_image, (110, 43))
+
+    class SampleRate(pygame.sprite.Sprite):
+        def __init__(self, skin):
+            self.skin = skin
+            self.surface = pygame.Surface((12, 10))
+            self.sampleRate = "44"
+            self.text = Text(self.skin, 5, 6)
+            self.text_image = self.text.draw(self.sampleRate, self.surface)
+
+        def draw(self, surface):
+            surface.blit(self.text_image, (156, 43))
 
     class Posbar(pygame.sprite.Sprite):
         def __init__(self, skin):
