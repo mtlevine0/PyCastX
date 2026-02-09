@@ -41,7 +41,6 @@ if __name__ == "__main__":
     test = base.Base(display_width, display_height, title)
 
     running = True
-    start_time = time.time()
     counter = 0
 
     while running:
@@ -59,19 +58,17 @@ if __name__ == "__main__":
 
         # Detect track changes
         if current_track.track_name != updated_track.track_name:
-            start_time = time.time()
             current_track = updated_track
             title = current_track.artist_name + ' - ' + current_track.track_name + ' (' + milliseconds_to_mmss(current_track.duration_ms) + ') *** '
             test = base.Base(display_width, display_height, title)
 
-        # Calculate display time and position
-        elapsed_ms = int((time.time() - start_time) * 1000)
-        display_time_ms = elapsed_ms + current_track.progress_ms
+        # Use progress_ms directly from provider (DBUS/MPRIS handles playback state)
+        display_time_ms = updated_track.progress_ms
         display_time = milliseconds_to_mmss(display_time_ms)
 
         # Calculate progress percentage
-        if current_track.duration_ms > 0:
-            progress_percent = (display_time_ms / current_track.duration_ms) * 100.0
+        if updated_track.duration_ms > 0:
+            progress_percent = (display_time_ms / updated_track.duration_ms) * 100.0
             progress_percent = min(progress_percent, 100.0)  # Cap at 100%
         else:
             progress_percent = 0.0
