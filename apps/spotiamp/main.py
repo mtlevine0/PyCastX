@@ -5,6 +5,7 @@ from components import base
 import time
 import sys
 from providers import get_media_provider, TrackInfo
+from providers.volume_providers import get_volume_provider
 import logging
 
 display_width = 384 * 1
@@ -21,6 +22,7 @@ def milliseconds_to_mmss(ms: int) -> str:
 if __name__ == "__main__":
     # Initialize media provider
     provider = get_media_provider()
+    volume_provider = get_volume_provider()
 
     # Initial track load with error handling
     current_track = provider.get_current_track()
@@ -73,8 +75,12 @@ if __name__ == "__main__":
         else:
             progress_percent = 0.0
 
+        volume_info = volume_provider.get_volume()
+        if volume_info:
+            volume = volume_info.volume * 100
+
         # Update and draw UI
-        test.move(progress_percent, display_time)
+        test.move(progress_percent, display_time, volume, updated_track.playback_status)
         test.draw(screen)
 
         pygame.display.flip()
