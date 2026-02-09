@@ -34,6 +34,10 @@ class Text(pygame.sprite.Sprite):
         text = text.upper()
 
         for index, char in enumerate(text):
+            # Replace non-ASCII characters with '?'
+            if not char.isascii():
+                char = '?'
+
             if char >= 'A' and char <= 'Z':
                 loc = (ord(char) - ord('A')) * self.char_width
                 char_image = self.sprite_sheet.subsurface(pygame.Rect(loc, 0, self.char_width, self.char_height))
