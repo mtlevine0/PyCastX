@@ -1,6 +1,7 @@
 import pygame
 from components.text import Text, Marquee
 from components.time import Time
+from components.visualizer import Visualizer
 import math
 
 class Base(pygame.sprite.Sprite):
@@ -77,8 +78,12 @@ class Base(pygame.sprite.Sprite):
         self.time = Time(self.skin)
         self.time.draw("00:00", self.base_surface)
 
+        ## Visualizer
+        self.visualizer = Visualizer(self.skin, width=76, height=16, num_bands=19)
+        self.visualizer.draw(self.base_surface)
 
-    def move(self, position, time, volume, state):
+
+    def move(self, position, time, volume, state, spectrum_data=None):
         self.posbar.move(position)
         self.posbar.draw(self.base_surface)
         self.marquee.move()
@@ -88,6 +93,8 @@ class Base(pygame.sprite.Sprite):
         self.playerstate.move(state)
         self.playerstate.draw(self.base_surface)
         self.time.draw(time, self.base_surface)
+        self.visualizer.move(spectrum_data)
+        self.visualizer.draw(self.base_surface)
 
     def draw(self, surface):
         scaled_base_surface = self.base_surface
@@ -109,17 +116,18 @@ class Base(pygame.sprite.Sprite):
         def __init__(self, skin):
             super().__init__()
             self.monoster_surface = pygame.Surface((50, 50))
-            self.logo = pygame.image.load("skins/base/raspbian_logo.png")
-            self.logo = pygame.transform.scale(self.logo, (23, 23))
+            self.logo = pygame.image.load("skins/base/tux_logo.png")
+            self.logo = pygame.transform.scale(self.logo, (28, 28))
 
         def draw(self, surface):
-            surface.blit(self.logo, (243, 85))
+            surface.blit(self.logo, (240, 83))
 
     class Title(pygame.sprite.Sprite):
         def __init__(self, skin):
             super().__init__()
             sprite_sheet = pygame.image.load("skins/{}/TITLEBAR.BMP".format(skin))
-            self.image = sprite_sheet.subsurface(pygame.Rect(27, 0, 275, 14))
+            # self.image = sprite_sheet.subsurface(pygame.Rect(27, 0, 275, 14))
+            self.image = sprite_sheet.subsurface(pygame.Rect(27, 57, 275, 14))
             self.rect = self.image.get_rect()
 
         def draw(self, surface):

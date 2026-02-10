@@ -72,7 +72,6 @@ class Marquee:
         self.marquee_surface = pygame.Surface((self.marquee_width, self.marquee_height))
         self.i = 0
         self.tiles = math.ceil(self.marquee_width / self.text_rect.width) + 1
-        print(self.tiles)
         self.frame = 0
 
     def move(self):

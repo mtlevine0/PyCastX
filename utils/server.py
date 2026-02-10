@@ -57,7 +57,7 @@ def init_socket():
 
     # One protocol instance will be created to serve all client requests
     listen = loop.create_datagram_endpoint(
-        EchoServerProtocol, local_addr=('192.168.68.85', 12000))
+        EchoServerProtocol, local_addr=('192.168.68.57', 12000))
     transport, protocol = loop.run_until_complete(listen)
 
     try:
