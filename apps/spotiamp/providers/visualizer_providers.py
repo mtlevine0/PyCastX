@@ -52,7 +52,7 @@ class VisualizerProvider(ABC):
 class SoundDeviceVisualizerProvider(VisualizerProvider):
     """Visualizer provider using sounddevice for audio capture and FFT analysis"""
 
-    def __init__(self, num_bands=10, samplerate=44100, blocksize=2048, noise_threshold=0.001, device_name=None):
+    def __init__(self, num_bands=10, samplerate=44100, blocksize=2048, noise_threshold=0.001, device_name=None, frequency_weighting=True):
         """
         Initialize the visualizer provider.
 
@@ -63,12 +63,14 @@ class SoundDeviceVisualizerProvider(VisualizerProvider):
             noise_threshold: Minimum RMS amplitude to consider as signal (0.0 to 1.0)
             device_name: Specific device name to use (e.g., "pulse" or PulseAudio source name)
                         If None, will auto-detect monitor device
+            frequency_weighting: Apply frequency-dependent weighting to balance bass vs treble (default True)
         """
         self.num_bands = num_bands
         self.samplerate = samplerate
         self.blocksize = blocksize
         self.noise_threshold = noise_threshold
         self.device_name = device_name
+        self.frequency_weighting = frequency_weighting
         self._stream = None
         self._latest_spectrum = SpectrumData(bands=[0.0] * num_bands, num_bands=num_bands)
         self._lock = threading.Lock()
@@ -133,6 +135,41 @@ class SoundDeviceVisualizerProvider(VisualizerProvider):
         except Exception as e:
             logging.error(f"Error in audio callback: {e}")
 
+    def _frequency_weight(self, freq_hz):
+        """
+        Calculate frequency-dependent weighting factor.
+        Boosts higher frequencies to compensate for natural bass dominance in music.
+
+        Args:
+            freq_hz: Frequency in Hz
+
+        Returns:
+            Weight multiplier (1.0 = no boost, higher = more boost)
+        """
+        if not self.frequency_weighting:
+            return 1.0
+
+        # Smooth curve that progressively boosts higher frequencies
+        # Based on typical music energy distribution
+        if freq_hz < 100:
+            # Deep bass: no boost
+            return 1.0
+        elif freq_hz < 500:
+            # Bass to low-mid: gentle boost
+            # Linear interpolation: 100Hz=1.0, 500Hz=2.0
+            return 1.0 + (freq_hz - 100) / 400 * 1.0
+        elif freq_hz < 2000:
+            # Mid frequencies: moderate boost
+            # Linear interpolation: 500Hz=2.0, 2000Hz=3.5
+            return 2.0 + (freq_hz - 500) / 1500 * 1.5
+        elif freq_hz < 8000:
+            # Upper-mid to treble: strong boost
+            # Linear interpolation: 2000Hz=3.5, 8000Hz=5.0
+            return 3.5 + (freq_hz - 2000) / 6000 * 1.5
+        else:
+            # High treble: maximum boost
+            return 5.0
+
     def _calculate_bands(self, magnitudes):
         """
         Convert FFT magnitudes to frequency bands.
@@ -154,6 +191,7 @@ class SoundDeviceVisualizerProvider(VisualizerProvider):
         for i in range(self.num_bands):
             start_freq = freq_bands[i]
             end_freq = freq_bands[i + 1]
+            center_freq = (start_freq + end_freq) / 2  # Geometric mean would be sqrt(start*end)
 
             # Convert frequencies to FFT bin indices
             start_idx = int(start_freq * self.blocksize / self.samplerate)
@@ -171,6 +209,10 @@ class SoundDeviceVisualizerProvider(VisualizerProvider):
                 band_mag = float(magnitudes[start_idx])
             else:
                 band_mag = 0.0
+
+            # Apply frequency-dependent weighting
+            weight = self._frequency_weight(center_freq)
+            band_mag *= weight
 
             band_magnitudes.append(band_mag)
 
@@ -306,7 +348,7 @@ class DummyVisualizerProvider(VisualizerProvider):
         pass
 
 
-def get_visualizer_provider(num_bands=10, noise_threshold=0.001, device_name=None) -> VisualizerProvider:
+def get_visualizer_provider(num_bands=10, noise_threshold=0.001, device_name=None, frequency_weighting=True) -> VisualizerProvider:
     """
     Factory function to get the best available visualizer provider.
     Tries providers in order of preference:
@@ -321,6 +363,8 @@ def get_visualizer_provider(num_bands=10, noise_threshold=0.001, device_name=Non
         device_name: Specific audio device to use (e.g., "pulse" or PulseAudio source name)
                     If None, will auto-detect monitor device
                     Find your monitor device with: pactl list sources short | grep monitor
+        frequency_weighting: Apply frequency-dependent weighting to balance bass vs treble (default True)
+                            Boosts higher frequencies to compensate for natural bass dominance
 
     Returns:
         VisualizerProvider instance
@@ -330,7 +374,8 @@ def get_visualizer_provider(num_bands=10, noise_threshold=0.001, device_name=Non
         sounddevice_provider = SoundDeviceVisualizerProvider(
             num_bands=num_bands,
             noise_threshold=noise_threshold,
-            device_name=device_name
+            device_name=device_name,
+            frequency_weighting=frequency_weighting
         )
         if sounddevice_provider.is_available():
             logging.info("Using SoundDevice visualizer provider")
