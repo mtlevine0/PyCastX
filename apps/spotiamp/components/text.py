@@ -27,6 +27,20 @@ class Text(pygame.sprite.Sprite):
         self.char_height = char_height
 
 
+    def is_valid_char(self, char):
+        """Check if character is supported by our font."""
+        # Check if it's a letter (upper or lower case)
+        if (char >= 'A' and char <= 'Z') or (char >= 'a' and char <= 'z'):
+            return True
+        # Check if it's a number
+        if char >= '0' and char <= '9':
+            return True
+        # Check if it's in the char_map
+        for char_row in char_map.keys():
+            if char in char_row:
+                return True
+        return False
+
     # TODO: Consolidate this method
     def draw(self, text, surface):
         surface_width = len(text) * self.char_width
@@ -34,8 +48,8 @@ class Text(pygame.sprite.Sprite):
         text = text.upper()
 
         for index, char in enumerate(text):
-            # Replace non-ASCII characters with '?'
-            if not char.isascii():
+            # Replace unsupported characters with '?'
+            if not self.is_valid_char(char):
                 char = '?'
 
             if char >= 'A' and char <= 'Z':
