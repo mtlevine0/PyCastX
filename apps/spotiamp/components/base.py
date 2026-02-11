@@ -83,7 +83,52 @@ class Base(pygame.sprite.Sprite):
         self.visualizer.draw(self.base_surface)
 
 
+    def show_volume_display(self, volume_percent):
+        """
+        Show volume percentage in marquee display.
+        Saves original marquee state for later restoration.
+        """
+        if not hasattr(self, '_original_marquee_state'):
+            # Save original state
+            self._original_marquee_state = {
+                'text_surface': self.marquee.text_surface,
+                'text_rect': self.marquee.text_rect,
+                'marquee_position': self.marquee.marquee_position,
+                'tiles': self.marquee.tiles
+            }
+
+        # Create volume display
+        volume_text = f"VOLUME: {volume_percent}%"
+        volume_text_surface = self.text.draw(volume_text, self.base_surface)
+
+        # Update marquee
+        self.marquee.marquee_surface.fill((0, 0, 0))
+        self.marquee.text_surface = volume_text_surface
+        self.marquee.text_rect = volume_text_surface.get_rect()
+        self.marquee.marquee_position = 0
+        self.marquee.tiles = 1
+        self.marquee.marquee_surface.blit(volume_text_surface, (0, 0))
+        self.marquee.frame = 0  # Freeze scrolling
+
+    def hide_volume_display(self):
+        """Restore original marquee display"""
+        if hasattr(self, '_original_marquee_state'):
+            state = self._original_marquee_state
+            self.marquee.text_surface = state['text_surface']
+            self.marquee.text_rect = state['text_rect']
+            self.marquee.marquee_position = state['marquee_position']
+            self.marquee.tiles = state['tiles']
+            delattr(self, '_original_marquee_state')
+
     def move(self, position, time, volume, state, spectrum_data=None):
+        """
+        Update display with current values.
+        If volume display is active, keep marquee frozen.
+        """
+        # Keep marquee frozen during volume display
+        if hasattr(self, '_original_marquee_state'):
+            self.marquee.frame = 0
+
         self.posbar.move(position)
         self.posbar.draw(self.base_surface)
         self.marquee.move()
