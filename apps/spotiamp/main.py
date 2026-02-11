@@ -9,6 +9,7 @@ sys.path.insert(0, str(project_root))
 
 import pygame
 from components import base
+from components.text import Marquee
 import time
 from providers import get_media_provider, TrackInfo
 from providers.volume_providers import get_volume_provider
@@ -58,6 +59,11 @@ if __name__ == "__main__":
     running = True
     counter = 0
 
+    # Volume change tracking state
+    previous_volume = None  # Track previous volume to detect changes
+    volume_display_frames_remaining = 0  # Countdown timer (60 frames = 1 second)
+    original_marquee = None  # Store original marquee object to preserve scroll position
+
     with UDPFrameClient() as client:
 
         while running:
@@ -79,6 +85,11 @@ if __name__ == "__main__":
                 title = current_track.artist_name + ' - ' + current_track.track_name + ' (' + milliseconds_to_mmss(current_track.duration_ms) + ') *** '
                 test = base.Base(display_width, display_height, title)
 
+                # Reset volume display state on track change
+                volume_display_frames_remaining = 0
+                original_marquee = None
+                previous_volume = None  # Reset to allow volume changes on new track
+
             # Use progress_ms directly from provider (DBUS/MPRIS handles playback state)
             display_time_ms = updated_track.progress_ms
             display_time = milliseconds_to_mmss(display_time_ms)
@@ -90,9 +101,59 @@ if __name__ == "__main__":
             else:
                 progress_percent = 0.0
 
+            # Get current volume
             volume_info = volume_provider.get_volume()
+            current_volume_percent = None
             if volume_info:
-                volume = volume_info.volume * 100
+                current_volume_percent = volume_info.volume_percent
+                volume = volume_info.volume * 100  # For slider (0-100 float)
+
+                # Detect volume change
+                if previous_volume is not None and previous_volume != current_volume_percent:
+                    # Volume changed - start displaying volume
+                    volume_display_frames_remaining = 60  # 1 second at 60 FPS
+
+                    # Store original text surface and position to restore later
+                    if original_marquee is None:
+                        original_marquee = {
+                            'text_surface': test.marquee.text_surface,
+                            'text_rect': test.marquee.text_rect,
+                            'marquee_position': test.marquee.marquee_position,
+                            'tiles': test.marquee.tiles
+                        }
+
+                    # Replace text surface with volume display (centered, no scrolling)
+                    volume_text = f"VOLUME: {current_volume_percent}%"
+                    volume_text_surface = test.text.draw(volume_text, test.base_surface)
+
+                    # Clear the marquee surface with black before replacing text
+                    test.marquee.marquee_surface.fill((0, 0, 0))
+
+                    test.marquee.text_surface = volume_text_surface
+                    test.marquee.text_rect = volume_text_surface.get_rect()
+                    test.marquee.marquee_position = 0  # Reset position
+                    test.marquee.tiles = 1  # Don't repeat
+
+                    # Manually draw the volume text once (since we'll freeze the marquee)
+                    test.marquee.marquee_surface.blit(volume_text_surface, (0, 0))
+
+                previous_volume = current_volume_percent
+
+            # Handle volume display countdown
+            if volume_display_frames_remaining > 0:
+                volume_display_frames_remaining -= 1
+
+                # Keep marquee frozen (prevent scrolling) by resetting frame counter
+                # Marquee only scrolls when frame > 15, so keeping it at 0 prevents movement
+                test.marquee.frame = 0
+
+                # Time expired - restore original marquee with preserved scroll position
+                if volume_display_frames_remaining == 0 and original_marquee is not None:
+                    test.marquee.text_surface = original_marquee['text_surface']
+                    test.marquee.text_rect = original_marquee['text_rect']
+                    test.marquee.marquee_position = original_marquee['marquee_position']
+                    test.marquee.tiles = original_marquee['tiles']
+                    original_marquee = None
 
             # Get audio spectrum data
             spectrum_data = visualizer_provider.get_spectrum()
