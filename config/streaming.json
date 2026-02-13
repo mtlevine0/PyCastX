@@ -1,0 +1,27 @@
+{
+  "mode": "codec",
+  "comment_mode": "codec = H.264 compression (~1-4 Mbps), raw = uncompressed UDP (~20 Mbps)",
+  "video": {
+    "width": 384,
+    "height": 192,
+    "fps": 30,
+    "comment_fps": "Target frame rate (higher = smoother but more bandwidth)"
+  },
+  "encoding": {
+    "bitrate": "2M",
+    "gop_size": 30,
+    "preset": "ultrafast",
+    "low_latency": true,
+    "comment_bitrate": "1M = 1 Mbps, 2M = 2 Mbps (higher = better quality, more bandwidth). At 60 FPS use 2M+",
+    "comment_gop": "Keyframe interval in frames (should match fps for 1 second)",
+    "comment_low_latency": "true = minimize buffering and latency (drops frames if needed), false = prioritize smooth playback"
+  },
+  "network": {
+    "server_ip": "192.168.68.57",
+    "server_port": 12001
+  },
+  "application": {
+    "frame_skip": 1,
+    "comment_frame_skip": "Send every Nth frame (at 60 FPS: 3=20fps, 4=15fps, 5=12fps, 6=10fps)"
+  }
+}

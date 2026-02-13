@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import asyncio
+import sys
+import argparse
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 from PIL import Image
 import struct
@@ -8,6 +10,7 @@ import struct
 width = 384
 height = 192
 max_message_length = 1024
+bytes_per_frame = width * height * 3
 
 def init_led():
     # Configuration for the matrix
@@ -68,5 +71,62 @@ def init_socket():
     transport.close()
     loop.close()
 
+def run_stdin_mode():
+    """Read raw RGB frames from stdin and display on matrix (codec mode)"""
+    print("Starting stdin mode (codec)")
+    print(f"  Reading raw RGB frames from stdin")
+    print(f"  Frame size: {width}x{height} ({bytes_per_frame} bytes)")
+    print("")
+
+    # Initialize LED matrix
+    matrix = init_led()
+
+    # Configure stdin to binary mode
+    stdin_binary = sys.stdin.buffer
+
+    frame_count = 0
+    bytes_read_total = 0
+    try:
+        while True:
+            # Read one complete frame from stdin
+            frame_data = stdin_binary.read(bytes_per_frame)
+            bytes_received = len(frame_data)
+            bytes_read_total += bytes_received
+
+            # Debug: Show what we're receiving
+            if frame_count < 5 or bytes_received != bytes_per_frame:
+                print(f"[Frame {frame_count}] Received {bytes_received} bytes (total: {bytes_read_total})")
+
+            # Check if we got a complete frame
+            if bytes_received != bytes_per_frame:
+                if bytes_received == 0:
+                    print("\nEnd of stream (stdin closed)")
+                else:
+                    print(f"\nIncomplete frame: got {bytes_received} bytes, expected {bytes_per_frame}")
+                break
+
+            # Convert to PIL image and display
+            pil_image = Image.frombytes("RGB", (width, height), frame_data)
+            matrix.SetImage(pil_image)
+
+            frame_count += 1
+            if frame_count % 10 == 0:
+                print(f"Frames displayed: {frame_count}", end='\r')
+
+    except KeyboardInterrupt:
+        print(f"\nStopped. Total frames: {frame_count}")
+    except Exception as e:
+        print(f"\nError: {e}")
+        import traceback
+        traceback.print_exc()
+
 if __name__ == "__main__":
-    init_socket()
+    parser = argparse.ArgumentParser(description='LED Matrix Server')
+    parser.add_argument('--mode', choices=['udp', 'stdin'], default='udp',
+                        help='Server mode: udp (raw packets) or stdin (codec stream)')
+    args = parser.parse_args()
+
+    if args.mode == 'stdin':
+        run_stdin_mode()
+    else:
+        init_socket()
